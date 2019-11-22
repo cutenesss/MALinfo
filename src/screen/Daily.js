@@ -1,17 +1,27 @@
 import React, { Component } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, ActivityIndicator, ToastAndroid } from 'react-native';
 import ScrollableTabView, { ScrollableTabBar } from 'react-native-scrollable-tab-view';
 import ViewInScrollableTabView from '../component/ViewInScrollableTabView';
 import { tabNameInDaily, days } from '../const';
 import Header from '../component/Header';
 import { getDaily } from '../services/GetAPI';
+import { connect } from 'react-redux';
+import { createUser, deleteUser } from '../redux/actions/UserAction';
+import CheckConnection from '../services/CheckConnection';
+import AsyncStorage from '@react-native-community/async-storage';
 
 class Daily extends Component {
   constructor(props) {
     super(props);
     this.state = {
+      refreshing: false,
+      isLoading: true,
     };
     this.index = 0;
+  }
+
+  componentDidMount = () => {
+    this.getData();
   }
 
   renderTabBar = () => {
@@ -20,18 +30,32 @@ class Daily extends Component {
     )
   }
 
-  getData = () => {
-    getDaily(days[this.index])
-      .then(response => response.json()) 
-      .then(res => {
-        this.ViewInScrollableTabView.setState({
-          items: res[days[this.index]],
-          isLoading: false
+  getData = async () => {
+    const checked = await CheckConnection();
+    if (checked) {
+      this.props.delete();
+      AsyncStorage.removeItem(`${days[this.index]}`);
+      getDaily(days[this.index])
+        .then(response => response.json())
+        .then(res => {
+          this.props.create(res[days[this.index]]);
+          AsyncStorage.setItem(`${days[this.index]}`, JSON.stringify(res[days[this.index]]));
+          this.setState({ isLoading: false });
         })
-      })
-      .catch((error) => {
-        console.error(error);
-      });
+        .catch((error) => {
+          console.error(error);
+        });
+    } else {
+      let day = await AsyncStorage.getItem(`${days[this.index]}`);
+      if (day == null) {
+        this.props.delete();
+        this.props.create([]);
+      } else {
+        this.props.delete();
+        this.props.create(JSON.parse(day));
+        this.setState({ isLoading: false });
+      }
+    }
   }
 
   onChangeTab = (item) => {
@@ -39,50 +63,77 @@ class Daily extends Component {
     this.getData();
   }
 
-  gotoDetail = (item) => {
-    this.props.navigation.navigate("DetailAnime", { item: item });
+  gotoDetail = async (item) => {
+    const checked = await CheckConnection();
+    if (checked) {
+      this.props.navigation.navigate("DetailAnime", { id: item.mal_id });
+    } else {
+      ToastAndroid.showWithGravity('No network connection !', ToastAndroid.LONG, ToastAndroid.CENTER);
+      return;
+    }
+  }
+
+  renderLoading = () => {
+    return (
+      <View style={styles.loadingAtStart}>
+        <ActivityIndicator size="large" color='black' />
+      </View>
+    )
+  }
+
+  onRefresh = () => {
+    this.setState({ refreshing: true });
+    this.getData();
+    this.setState({ refreshing: false });
   }
 
   render() {
     return (
-      <View style={styles.container}>
-        <Header
-          ref={ref => this.Header = ref}
-          firstTxt={'Daily'}
-          secondTxt={''}
-        />
-        {
-          <ScrollableTabView
-            initialPage={0}
-            renderTabBar={this.renderTabBar}
-            tabBarInactiveTextColor={'gray'}
-            tabBarActiveTextColor={'black'}
-            tabBarUnderlineStyle={styles.tabBarUnder}
-            onChangeTab={this.onChangeTab}
-          >
-            {
-              tabNameInDaily.map(
-                (item, index) => {
-                  return (
-                    <ViewInScrollableTabView
-                      ref={ref => this.ViewInScrollableTabView = ref}
-                      tabLabel={item}
-                      getData={this.getData}
-                      onPress={this.gotoDetail}
-                      key={index}
-                    />
-                  )
-                }
-              )
-            }
-          </ScrollableTabView>
-        }
-      </View>
+      (this.state.isLoading) ? this.renderLoading() :
+        <View style={styles.container}>
+          <Header
+            firstTxt={'Daily'}
+            secondTxt={''}
+          />
+          {
+            <ScrollableTabView
+              initialPage={0}
+              renderTabBar={this.renderTabBar}
+              tabBarInactiveTextColor={'gray'}
+              tabBarActiveTextColor={'black'}
+              tabBarUnderlineStyle={styles.tabBarUnder}
+              onChangeTab={this.onChangeTab}
+            >
+              {
+                tabNameInDaily.map(
+                  (item, index) => {
+                    return (
+                      <ViewInScrollableTabView
+                        tabLabel={item}
+                        refreshing={this.state.refreshing}
+                        onRefresh={this.onRefresh}
+                        onPress={this.gotoDetail}
+                        key={index}
+                      />
+                    )
+                  }
+                )
+              }
+            </ScrollableTabView>
+          }
+        </View>
     );
   }
 }
 
-export default Daily;
+const mapDispatchToProps = (dispatch) => {
+  return {
+    create: (data) => dispatch(createUser(data)),
+    delete: () => dispatch(deleteUser())
+  }
+}
+
+export default connect(null, mapDispatchToProps)(Daily);
 
 const styles = StyleSheet.create({
   container: {
@@ -94,5 +145,10 @@ const styles = StyleSheet.create({
   },
   tabBarUnder: {
     height: 2
+  },
+  loadingAtStart: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center'
   },
 });

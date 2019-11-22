@@ -4,22 +4,17 @@ import { getSeason, getYear } from './GetSysDate';
 import { url } from '../const';
 
 const getCurrentSeason = async () => {
-    const checked = await CheckConnection();
-    if (checked) {
-        let year = getYear();
-        let season = getSeason();
-        return fetch(`${url}season/${year}/${season}`,
-            {
-                method: 'GET',
-                headers: {
-                    Accept: 'application/json',
-                    'Content-Type': 'application/json',
-                }
+    let year = getYear();
+    let season = getSeason();
+    return fetch(`${url}season/${year}/${season}`,
+        {
+            method: 'GET',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
             }
-        )
-    } else {
-        ToastAndroid.showWithGravity('Please check your network !', ToastAndroid.SHORT, ToastAndroid.CENTER);
-    }
+        }
+    )
 }
 
 const getRecomAnime = async (id) => {
@@ -43,6 +38,23 @@ const getTypeAnime = async (page, type) => {
     const checked = await CheckConnection();
     if (checked) {
         return fetch(`${url}top/anime/${page}/${type}`,
+            {
+                method: 'GET',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                }
+            }
+        )
+    } else {
+        ToastAndroid.showWithGravity('Please check your network !', ToastAndroid.SHORT, ToastAndroid.CENTER);
+    }
+}
+
+const getDetailAnime = async (id) => {
+    const checked = await CheckConnection();
+    if (checked) {
+        return fetch(`${url}/anime/${id}//`,
             {
                 method: 'GET',
                 headers: {
@@ -91,21 +103,16 @@ const getTypeManga = async (page, type) => {
 }
 
 const getDaily = async (day) => {
-    const checked = await CheckConnection();
-    if (checked) {
-        return fetch(
-            `${url}schedule/${day}`,
-            {
-                method: 'GET',
-                headers: {
-                    Accept: 'application/json',
-                    'Content-type': 'application/json'
-                }
+    return fetch(
+        `${url}schedule/${day}`,
+        {
+            method: 'GET',
+            headers: {
+                Accept: 'application/json',
+                'Content-type': 'application/json'
             }
-        )
-    } else {
-        ToastAndroid.showWithGravity('Please check your network !', ToastAndroid.SHORT, ToastAndroid.CENTER);
-    }
+        }
+    )
 }
 
 const getAnimeByYear = async (year, season) => {
@@ -165,6 +172,7 @@ export {
     getCurrentSeason,
     getRecomAnime,
     getTypeAnime,
+    getDetailAnime,
     getRecomManga,
     getTypeManga,
     getDaily,
